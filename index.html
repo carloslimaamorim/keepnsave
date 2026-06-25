@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerador de Senhas</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #111;
+      color: #eee;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 2rem 1rem;
+      box-sizing: border-box;
+    }
+    h2 { margin: 0 0 1rem; font-size: 1rem; letter-spacing: .05em; color: #aaa; text-transform: uppercase; }
+    .card { border: 1px solid #333; padding: 1.5rem; width: 100%; max-width: 460px; box-sizing: border-box; }
+    #password-display { font-size: 1rem; background: #1a1a1a; border: 1px solid #333; padding: .6rem .8rem; margin-bottom: .6rem; min-height: 2.2rem; color: #0f0; word-break: break-all; }
+    .strength { height: 3px; background: #222; margin-bottom: 1rem; }
+    #strength-bar { height: 100%; width: 0; transition: width .3s, background .3s; }
+    .row { display: flex; align-items: center; gap: .6rem; margin-bottom: .8rem; }
+    label { font-size: .82rem; color: #aaa; }
+    input[type="range"] { flex: 1; accent-color: #0f0; }
+    .section-title { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: #555; margin: .8rem 0 .4rem; border-top: 1px solid #222; padding-top: .7rem; }
+    .checks { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem .6rem; margin-bottom: .8rem; }
+    .checks label { display: flex; align-items: center; gap: .4rem; font-size: .8rem; color: #aaa; cursor: pointer; user-select: none; }
+    .checks label:hover { color: #eee; }
+    /* mantém o checkbox focável (acessível via teclado) mas invisível */
+    input[type="checkbox"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .chk { width: 13px; height: 13px; border: 1px solid #555; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; color: transparent; background: #1a1a1a; transition: border-color .15s, background .15s; }
+    input[type="checkbox"]:checked + .chk { color: #0f0; border-color: #0f0; background: #0a1a0a; }
+    input[type="checkbox"]:focus-visible + .chk { outline: 1px dashed var(--accent, #0f0); outline-offset: 2px; }
+    .btns { display: flex; gap: .5rem; margin-top: 1rem; }
+    button { background: #1a1a1a; border: 1px solid #444; color: #eee; padding: .45rem .9rem; font-family: monospace; font-size: .82rem; cursor: pointer; transition: border-color .15s, color .15s; }
+    button:hover, button:focus-visible { border-color: var(--accent, #0f0); color: var(--accent, #0f0); }
+    .tabs { display: flex; border-bottom: 1px solid #333; margin-bottom: 1.4rem; }
+    .tab-btn { background: none; border: none; border-bottom: 2px solid transparent; color: #666; font-family: monospace; font-size: .8rem; padding: .45rem .9rem .35rem; cursor: pointer; margin-bottom: -1px; text-transform: uppercase; letter-spacing: .05em; }
+    .tab-btn.active { color: #0f0; border-bottom-color: #0f0; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .theme-list { display: flex; flex-direction: column; gap: .35rem; margin-bottom: 1rem; }
+    .theme-opt { display: flex; align-items: center; gap: .7rem; padding: .45rem .7rem; border: 1px solid #2a2a2a; cursor: pointer; font-size: .82rem; color: #aaa; }
+    .theme-opt:hover { border-color: #555; color: #eee; }
+    .theme-opt:focus-visible { outline: 1px dashed var(--accent, #0f0); outline-offset: 2px; }
+    .theme-opt.active { border-color: #0f0; color: #eee; }
+    .theme-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    #toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: #0f0; color: #000; font-family: monospace; font-size: .78rem; padding: .35rem .8rem; opacity: 0; pointer-events: none; transition: opacity .2s; }
+    #toast.show { opacity: 1; }
+    .custom-row { display: flex; gap: .4rem; margin-bottom: .4rem; align-items: center; }
+    .custom-row input[type="text"], input[type="text"] { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #eee; font-family: monospace; font-size: .8rem; padding: .3rem .5rem; box-sizing: border-box; }
+    .custom-row input[type="text"]:focus, input[type="text"]:focus { outline: none; border-color: #555; }
+    .custom-row input[type="text"]:focus-visible, input[type="text"]:focus-visible { border-color: var(--accent, #0f0); }
+    /* campos de hex do editor de tema: aparência fixa, não seguem o tema ativo (evita "mudar sozinho" visualmente) */
+    .hex-input { background: #0d0d0d !important; border-color: #333 !important; color: #ccc !important; }
+    .hex-input:focus-visible { border-color: #777 !important; }
+    .custom-row .tag { font-size: .75rem; color: #555; min-width: 70px; }
+    #custom-alphabets { margin-top: .4rem; }
+    .custom-item { display: flex; align-items: center; gap: .5rem; margin-bottom: .3rem; font-size: .8rem; color: #aaa; }
+    .custom-item .chk { cursor: pointer; }
+    .custom-item .label-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .custom-item .remove { color: #555; cursor: pointer; border: none; background: none; font-family: monospace; font-size: .8rem; padding: 0 .2rem; }
+    .custom-item .remove:hover { color: #f44; }
+
+    /* custom theme editor */
+    .color-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem .8rem; margin-bottom: .8rem; }
+    .color-row { display: flex; flex-direction: column; gap: .2rem; }
+    .color-row span { font-size: .72rem; color: #555; text-transform: uppercase; letter-spacing: .05em; }
+    .color-row-inline { display: flex; align-items: center; gap: .5rem; }
+    .color-row-inline input[type="color"] { width: 32px; height: 24px; border: 1px solid #333; background: none; cursor: pointer; padding: 0; }
+    .color-row-inline input[type="text"] { flex: 1; font-size: .78rem; padding: .2rem .4rem; }
+    .preview-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('gen',this)">Gerador</button>
+    <button class="tab-btn" onclick="switchTab('themes',this)">Temas</button>
+  </div>
+
+  <!-- GERADOR -->
+  <div class="tab-panel active" id="tab-gen">
+    <h2>Gerador de Senhas</h2>
+
+    <div id="password-display">—</div>
+    <div class="strength"><div id="strength-bar"></div></div>
+
+    <div class="row">
+      <label for="length">Tamanho:</label>
+      <input type="range" id="length" min="1" max="255" value="12" oninput="document.getElementById('lenOut').textContent=this.value">
+      <span id="lenOut" style="min-width:26px;font-size:.8rem;">12</span>
+    </div>
+
+    <div class="section-title">Padrão</div>
+    <div class="checks">
+      <label><input type="checkbox" id="cb-lower" checked><span class="chk">✔</span> minúsculas a–z</label>
+      <label><input type="checkbox" id="cb-upper" checked><span class="chk">✔</span> maiúsculas A–Z</label>
+      <label><input type="checkbox" id="cb-nums"  checked><span class="chk">✔</span> números 0–9</label>
+      <label><input type="checkbox" id="cb-sym"><span class="chk"></span> símbolos !@#$</label>
+    </div>
+
+    <div class="section-title">Alfabetos</div>
+    <div class="checks">
+      <label><input type="checkbox" id="cb-cyr"><span class="chk"></span> cirílico (рус)</label>
+      <label><input type="checkbox" id="cb-gre"><span class="chk"></span> grego (αβγ)</label>
+      <label><input type="checkbox" id="cb-ara"><span class="chk"></span> árabe (عربي)</label>
+      <label><input type="checkbox" id="cb-heb"><span class="chk"></span> hebraico (עבר)</label>
+      <label><input type="checkbox" id="cb-jp-hira"><span class="chk"></span> hiragana (あいう)</label>
+      <label><input type="checkbox" id="cb-jp-kata"><span class="chk"></span> katakana (アイウ)</label>
+      <label><input type="checkbox" id="cb-han"><span class="chk"></span> kanji/hanzi (漢字)</label>
+      <label><input type="checkbox" id="cb-ko"><span class="chk"></span> coreano (한글)</label>
+      <label><input type="checkbox" id="cb-th"><span class="chk"></span> tailandês (ไทย)</label>
+      <label><input type="checkbox" id="cb-arm"><span class="chk"></span> armênio (Հայ)</label>
+    </div>
+
+    <div class="section-title">Alfabeto personalizado</div>
+    <div class="custom-row">
+      <span class="tag">nome:</span>
+      <input type="text" id="custom-name" placeholder="ex: Élfico">
+    </div>
+    <div class="custom-row">
+      <span class="tag">caracteres:</span>
+      <input type="text" id="custom-chars" placeholder="cole ou digite os caracteres aqui" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomAlphabet()}">
+    </div>
+    <button onclick="addCustomAlphabet()" style="margin-top:.3rem;font-size:.78rem;">+ Adicionar</button>
+    <div id="custom-alphabets"></div>
+
+    <div class="btns">
+      <button onclick="generatePassword()">Gerar</button>
+      <button onclick="copyPassword()">Copiar</button>
+    </div>
+  </div>
+
+  <!-- TEMAS -->
+  <div class="tab-panel" id="tab-themes">
+    <h2>Tema</h2>
+    <div class="theme-list">
+      <div class="theme-opt active" tabindex="0" role="button" onclick="setTheme('hacker',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setTheme('hacker',this)}">
+        <div class="theme-dot" style="background:#0f0"></div> Hacker (padrão)
+      </div>
+      <div class="theme-opt" tabindex="0" role="button" onclick="setTheme('white',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setTheme('white',this)}">
+        <div class="theme-dot" style="background:#111;border:1px solid #ccc"></div> Branco
+      </div>
+      <div class="theme-opt" tabindex="0" role="button" onclick="setTheme('amber',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setTheme('amber',this)}">
+        <div class="theme-dot" style="background:#ffb300"></div> Âmbar
+      </div>
+      <div class="theme-opt" tabindex="0" role="button" onclick="setTheme('blue',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setTheme('blue',this)}">
+        <div class="theme-dot" style="background:#4af"></div> Azul
+      </div>
+      <div class="theme-opt" tabindex="0" role="button" onclick="setTheme('red',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setTheme('red',this)}">
+        <div class="theme-dot" style="background:#f44"></div> Vermelho
+      </div>
+      <div class="theme-opt" id="custom-theme-opt" tabindex="0" role="button" onclick="setTheme('custom',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setTheme('custom',this)}">
+        <div class="theme-dot" id="custom-theme-dot" style="background:#a259ff"></div> Personalizado
+      </div>
+    </div>
+
+    <div class="section-title">Personalizar tema</div>
+    <div class="color-grid">
+      <div class="color-row">
+        <span>Fundo</span>
+        <div class="color-row-inline">
+          <input type="color" id="cp-bg" value="#111111" oninput="syncColorText('cp-bg','ct-bg')">
+          <input type="text"  id="ct-bg" class="hex-input" value="#111111" maxlength="7" oninput="syncColorPicker('ct-bg','cp-bg')">
+        </div>
+      </div>
+      <div class="color-row">
+        <span>Superfície</span>
+        <div class="color-row-inline">
+          <input type="color" id="cp-surface" value="#1a1a1a" oninput="syncColorText('cp-surface','ct-surface')">
+          <input type="text"  id="ct-surface" class="hex-input" value="#1a1a1a" maxlength="7" oninput="syncColorPicker('ct-surface','cp-surface')">
+        </div>
+      </div>
+      <div class="color-row">
+        <span>Borda</span>
+        <div class="color-row-inline">
+          <input type="color" id="cp-border" value="#333333" oninput="syncColorText('cp-border','ct-border')">
+          <input type="text"  id="ct-border" class="hex-input" value="#333333" maxlength="7" oninput="syncColorPicker('ct-border','cp-border')">
+        </div>
+      </div>
+      <div class="color-row">
+        <span>Texto</span>
+        <div class="color-row-inline">
+          <input type="color" id="cp-text" value="#eeeeee" oninput="syncColorText('cp-text','ct-text')">
+          <input type="text"  id="ct-text" class="hex-input" value="#eeeeee" maxlength="7" oninput="syncColorPicker('ct-text','cp-text')">
+        </div>
+      </div>
+      <div class="color-row">
+        <span>Destaque</span>
+        <div class="color-row-inline">
+          <input type="color" id="cp-accent" value="#a259ff" oninput="syncColorText('cp-accent','ct-accent')">
+          <input type="text"  id="ct-accent" class="hex-input" value="#a259ff" maxlength="7" oninput="syncColorPicker('ct-accent','cp-accent')">
+        </div>
+      </div>
+      <div class="color-row">
+        <span>Texto destaque</span>
+        <div class="color-row-inline">
+          <input type="color" id="cp-accentfg" value="#000000" oninput="syncColorText('cp-accentfg','ct-accentfg')">
+          <input type="text"  id="ct-accentfg" class="hex-input" value="#000000" maxlength="7" oninput="syncColorPicker('ct-accentfg','cp-accentfg')">
+        </div>
+      </div>
+    </div>
+    <div class="btns">
+      <button onclick="applyCustomTheme()">Aplicar</button>
+      <button onclick="saveCustomTheme()">Salvar</button>
+      <button onclick="copyCustomTheme()">Copiar tema</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite">copiado!</div>
+
+<script>
+  const CHARSETS = {
+    'cb-lower':   'abcdefghijklmnopqrstuvwxyz',
+    'cb-upper':   'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    'cb-nums':    '0123456789',
+    'cb-sym':     '!@#$%^&*()-_=+[]{}|;:,.<>?',
+    'cb-cyr':     'абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ',
+    'cb-gre':     'αβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ',
+    'cb-ara':     'ابتثجحخدذرزسشصضطظعغفقكلمنهوي',
+    'cb-heb':     'אבגדהוזחטיכלמנסעפצקרשת',
+    'cb-jp-hira': 'あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん',
+    'cb-jp-kata': 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン',
+    'cb-han':     '山水火木金土日月人大小上下中国文字語言',
+    'cb-ko':      '가나다라마바사아자차카타파하갈낙달말발살알잘찰칼탈팔할',
+    'cb-th':      'กขคงจฉชซญดตถทนบปผฝพฟภมยรลวศษสหอฮ',
+    'cb-arm':     'աբգդեզէըթժիլխծկհձղճմյնշոչպջռսվտրցւփք',
+  };
+
+  let customAlphabets = JSON.parse(localStorage.getItem('pwgen-custom') || '[]');
+  let customCounter = customAlphabets.length;
+
+  // evita que nome/caracteres com aspas ou < > quebrem o HTML renderizado
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function renderCustomAlphabets() {
+    const container = document.getElementById('custom-alphabets');
+    container.innerHTML = '';
+    customAlphabets.forEach((a, i) => {
+      const accent = window._accentColor || '#0f0';
+      const chkBg  = window._chkBg || '#0a1a0a';
+      const div = document.createElement('div');
+      div.className = 'custom-item';
+      const chkStyle = a.enabled
+        ? `color:${accent};border-color:${accent};background:${chkBg}`
+        : 'color:transparent';
+      div.innerHTML = `
+        <span class="chk" onclick="toggleCustom(${i})" style="cursor:pointer;${chkStyle}">${a.enabled ? '✔' : ''}</span>
+        <span class="label-text" title="${escapeHtml(a.chars)}">${escapeHtml(a.name)} <span style="color:#555">(${escapeHtml([...a.chars].slice(0,6).join(''))}${a.chars.length > 6 ? '…' : ''})</span></span>
+        <button class="remove" onclick="removeCustom(${i})">✕</button>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  function addCustomAlphabet() {
+    const name  = document.getElementById('custom-name').value.trim();
+    const chars = document.getElementById('custom-chars').value;
+    if (!chars) { showToast('coloque os caracteres primeiro'); return; }
+    const id = 'cb-custom-' + (++customCounter);
+    customAlphabets.push({ id, name: name || ('Custom ' + customCounter), chars, enabled: true });
+    saveCustom();
+    renderCustomAlphabets();
+    document.getElementById('custom-name').value = '';
+    document.getElementById('custom-chars').value = '';
+  }
+
+  function toggleCustom(i) {
+    customAlphabets[i].enabled = !customAlphabets[i].enabled;
+    saveCustom();
+    renderCustomAlphabets();
+  }
+
+  function removeCustom(i) {
+    customAlphabets.splice(i, 1);
+    saveCustom();
+    renderCustomAlphabets();
+  }
+
+  function saveCustom() {
+    localStorage.setItem('pwgen-custom', JSON.stringify(customAlphabets));
+  }
+
+  // ── THEMES ──
+  const THEMES = {
+    hacker: { bg:'#111',    surface:'#1a1a1a', border:'#333',    text:'#eee',    accent:'#0f0',    accentFg:'#000', chkBg:'#0a1a0a' },
+    white:  { bg:'#f5f5f5', surface:'#fff',    border:'#ccc',    text:'#111',    accent:'#111',    accentFg:'#f5f5f5', chkBg:'#e8e8e8' },
+    amber:  { bg:'#110d00', surface:'#1a1400', border:'#3a2d00', text:'#ffe8a0', accent:'#ffb300', accentFg:'#000', chkBg:'#1a1400' },
+    blue:   { bg:'#020a14', surface:'#071526', border:'#0d2a44', text:'#cce8ff', accent:'#44aaff', accentFg:'#000', chkBg:'#071526' },
+    red:    { bg:'#110000', surface:'#1a0000', border:'#3a0000', text:'#ffe0e0', accent:'#ff4444', accentFg:'#000', chkBg:'#1a0000' },
+  };
+
+  function buildCustomThemeFromInputs() {
+    return {
+      bg:       document.getElementById('cp-bg').value,
+      surface:  document.getElementById('cp-surface').value,
+      border:   document.getElementById('cp-border').value,
+      text:     document.getElementById('cp-text').value,
+      accent:   document.getElementById('cp-accent').value,
+      accentFg: document.getElementById('cp-accentfg').value,
+      chkBg:    document.getElementById('cp-surface').value,
+    };
+  }
+
+  function applyCustomTheme() {
+    THEMES.custom = buildCustomThemeFromInputs();
+    document.getElementById('custom-theme-dot').style.background = THEMES.custom.accent;
+    const opt = document.getElementById('custom-theme-opt');
+    setTheme('custom', opt);
+  }
+
+  function saveCustomTheme() {
+    applyCustomTheme();
+    localStorage.setItem('pwgen-custom-theme', JSON.stringify(THEMES.custom));
+    showToast('tema salvo!');
+  }
+
+  function copyCustomTheme() {
+    const t = buildCustomThemeFromInputs();
+    const text = `fundo:${t.bg} superficie:${t.surface} borda:${t.border} texto:${t.text} destaque:${t.accent} texto-destaque:${t.accentFg}`;
+    navigator.clipboard.writeText(text).then(() => showToast('tema copiado!'));
+  }
+
+  function syncColorText(pickerId, textId) {
+    document.getElementById(textId).value = document.getElementById(pickerId).value;
+  }
+
+  function syncColorPicker(textId, pickerId) {
+    const val = document.getElementById(textId).value;
+    if (/^#[0-9a-fA-F]{6}$/.test(val)) document.getElementById(pickerId).value = val;
+  }
+
+  function applyThemeToDOM(t) {
+    document.documentElement.style.setProperty('--accent', t.accent);
+    document.body.style.background = t.bg;
+    document.body.style.color = t.text;
+    document.querySelector('.card').style.borderColor = t.border;
+    const disp = document.getElementById('password-display');
+    disp.style.background = t.surface;
+    disp.style.borderColor = t.border;
+    disp.style.color = t.accent;
+    document.querySelectorAll('button').forEach(b => {
+      b.style.background = t.surface;
+      b.style.borderColor = t.border;
+      b.style.color = t.text;
+    });
+    document.querySelectorAll('.tab-btn.active').forEach(b => {
+      b.style.color = t.accent;
+      b.style.borderBottomColor = t.accent;
+    });
+    document.querySelectorAll('input[type="range"]').forEach(r => r.style.accentColor = t.accent);
+    document.querySelectorAll('input[type="text"]:not(.hex-input)').forEach(r => {
+      r.style.background = t.surface;
+      r.style.borderColor = t.border;
+      r.style.color = t.text;
+    });
+    // don't restyle color pickers text inputs
+    document.getElementById('strength-bar').style.background = t.accent;
+    document.getElementById('toast').style.background = t.accent;
+    document.getElementById('toast').style.color = t.accentFg;
+    window._accentColor = t.accent;
+    window._chkBg = t.chkBg;
+    applyChkTheme(t.accent, t.chkBg);
+    renderCustomAlphabets();
+  }
+
+  function setTheme(name, el) {
+    const t = THEMES[name];
+    if (!t) return;
+    applyThemeToDOM(t);
+    document.querySelectorAll('.theme-opt').forEach(o => {
+      o.classList.remove('active');
+      o.style.borderColor = '';
+      o.style.color = '';
+    });
+    if (el) {
+      el.classList.add('active');
+      el.style.borderColor = t.accent;
+      el.style.color = t.text;
+    }
+    localStorage.setItem('pwgen-theme', name);
+  }
+
+  function applyChkTheme(accent, chkBg) {
+    document.querySelectorAll('input[type="checkbox"]:checked + .chk').forEach(el => {
+      el.style.color = accent;
+      el.style.borderColor = accent;
+      el.style.background = chkBg;
+    });
+    document.querySelectorAll('input[type="checkbox"]:not(:checked) + .chk').forEach(el => {
+      el.style.color = 'transparent';
+      el.style.borderColor = '';
+      el.style.background = '';
+    });
+  }
+
+  document.addEventListener('change', e => {
+    if (e.target.type === 'checkbox') {
+      const chk = e.target.nextElementSibling;
+      if (!chk || !chk.classList.contains('chk')) return;
+      const accent = window._accentColor || '#0f0';
+      const bg = window._chkBg || '#0a1a0a';
+      if (e.target.checked) { chk.textContent = '✔'; chk.style.color = accent; chk.style.borderColor = accent; chk.style.background = bg; }
+      else { chk.textContent = ''; chk.style.color = 'transparent'; chk.style.borderColor = ''; chk.style.background = ''; }
+    }
+  });
+
+  function switchTab(id, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.style.color=''; b.style.borderBottomColor=''; });
+    document.getElementById('tab-' + id).classList.add('active');
+    btn.classList.add('active');
+    btn.style.color = window._accentColor || '#0f0';
+    btn.style.borderBottomColor = window._accentColor || '#0f0';
+  }
+
+  function generatePassword() {
+    const length = parseInt(document.getElementById('length').value);
+    const sets = [];
+    Object.keys(CHARSETS).forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.checked) sets.push(CHARSETS[id]);
+    });
+    customAlphabets.forEach(a => { if (a.enabled) sets.push(a.chars); });
+    if (!sets.length) { showToast('selecione ao menos uma opção'); return; }
+
+    const all = sets.join('');
+    let pwd = sets.map(s => [...s][Math.floor(Math.random() * [...s].length)]);
+    const allArr = [...all];
+    for (let i = pwd.length; i < length; i++) pwd.push(allArr[Math.floor(Math.random() * allArr.length)]);
+    pwd = pwd.sort(() => Math.random() - .5).join('');
+
+    document.getElementById('password-display').textContent = pwd;
+    updateStrength(pwd, sets.length);
+  }
+
+  function updateStrength(pwd, types) {
+    const bar = document.getElementById('strength-bar');
+    let s = 0;
+    if (pwd.length >= 8)  s++;
+    if (pwd.length >= 16) s++;
+    if (pwd.length >= 32) s++;
+    if (types >= 2) s++;
+    if (types >= 4) s++;
+    const widths = ['15%','30%','50%','72%','100%'];
+    bar.style.width = widths[Math.min(s,4)];
+    bar.style.background = window._accentColor || '#0f0';
+  }
+
+  function copyPassword() {
+    const t = document.getElementById('password-display').textContent;
+    if (!t || t === '—') return;
+    navigator.clipboard.writeText(t).then(() => showToast('copiado!'));
+  }
+
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 1800);
+  }
+
+  // ── INIT ──
+  // garante que o tema "Personalizado" já funcione de primeira, mesmo sem edição
+  THEMES.custom = buildCustomThemeFromInputs();
+
+  const savedCustomTheme = localStorage.getItem('pwgen-custom-theme');
+  if (savedCustomTheme) {
+    THEMES.custom = JSON.parse(savedCustomTheme);
+    const ct = THEMES.custom;
+    document.getElementById('cp-bg').value      = ct.bg;      document.getElementById('ct-bg').value      = ct.bg;
+    document.getElementById('cp-surface').value = ct.surface; document.getElementById('ct-surface').value = ct.surface;
+    document.getElementById('cp-border').value  = ct.border;  document.getElementById('ct-border').value  = ct.border;
+    document.getElementById('cp-text').value    = ct.text;    document.getElementById('ct-text').value    = ct.text;
+    document.getElementById('cp-accent').value  = ct.accent;  document.getElementById('ct-accent').value  = ct.accent;
+    document.getElementById('cp-accentfg').value= ct.accentFg;document.getElementById('ct-accentfg').value= ct.accentFg;
+    document.getElementById('custom-theme-dot').style.background = ct.accent;
+  }
+
+  const saved = localStorage.getItem('pwgen-theme');
+  if (saved && (THEMES[saved] || saved === 'custom')) {
+    const el = saved === 'custom'
+      ? document.getElementById('custom-theme-opt')
+      : document.querySelector(`.theme-opt[onclick="setTheme('${saved}',this)"]`);
+    setTheme(saved, el);
+  } else {
+    window._accentColor = '#0f0';
+    window._chkBg = '#0a1a0a';
+    applyChkTheme('#0f0', '#0a1a0a');
+  }
+  renderCustomAlphabets();
+</script>
+</body>
+</html>
